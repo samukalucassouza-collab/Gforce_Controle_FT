@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>G-Force | Controle de FT</title>
+<style>
+:root{--navy:#0b2b47;--blue:#0b67b2;--green:#168447;--red:#b42318;--amber:#b7791f;--bg:#eef3f7;--line:#d9e2ea;--text:#17212b}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+header{background:linear-gradient(135deg,#081f34,#0b3d63);color:#fff;padding:18px 22px;box-shadow:0 2px 8px #0002}
+.brand{font-size:23px;font-weight:800}.sub{font-size:13px;opacity:.82;margin-top:3px}.shell{max-width:1200px;margin:24px auto;padding:0 16px}
+.card{background:#fff;border-radius:14px;box-shadow:0 4px 18px #00000012;border:1px solid #e5ebf0;padding:20px;margin-bottom:16px}
+.login{max-width:560px;margin:45px auto}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+label{font-weight:700;font-size:13px;display:block;margin:2px 0 6px}input,select,textarea{width:100%;padding:11px;border:1px solid #c8d3dd;border-radius:9px;font:inherit;background:#fff}
+textarea{min-height:82px;resize:vertical}button{border:0;border-radius:9px;padding:10px 14px;font-weight:800;cursor:pointer;font:inherit}button:disabled{opacity:.55;cursor:not-allowed}
+.primary{background:var(--blue);color:#fff}.success{background:var(--green);color:#fff}.danger{background:var(--red);color:#fff}.warn{background:var(--amber);color:#fff}.ghost{background:#edf2f6;color:#203244}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.notice{padding:12px 14px;border-radius:9px;background:#e9f7ee;color:#126b34;font-weight:800;margin:12px 0}.notice.err{background:#fdecec;color:#9b1c1c}
+.hidden{display:none!important}.muted{color:#667585}.small{font-size:12px}.role{display:inline-block;padding:5px 9px;border-radius:999px;background:#e9f1f8;font-size:12px;font-weight:800}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}.stat{background:#f7f9fb;border:1px solid var(--line);border-radius:11px;padding:13px}.stat b{font-size:24px;display:block}
+.ft{border:1px solid var(--line);border-radius:12px;padding:15px;margin:10px 0;background:#fff}.fttop{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.ft h3{margin:0 0 7px}.badge{padding:6px 9px;border-radius:999px;font-size:12px;font-weight:800;background:#edf2f6;white-space:nowrap}
+.badge.aguardando_dp_rh,.badge.aguardando_pagamento{background:#fff3cd;color:#805b00}.badge.autorizada{background:#dff5e7;color:#176b36}.badge.paga{background:#d9f2e3;color:#11642f}.badge.recusada{background:#fde2e2;color:#991b1b}.badge.solicitar_correcao{background:#ffe8cc;color:#914d00}
+.detail{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;font-size:14px;margin-top:9px}.sectionTitle{margin:0 0 13px}.evidence{border-top:1px dashed var(--line);margin-top:13px;padding-top:12px}
+.filegrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.filebox{padding:10px;border:1px solid var(--line);border-radius:9px;background:#fafcfd}.filebox input{padding:6px}
+@media(max-width:760px){.grid,.grid3,.stats,.detail,.filegrid{grid-template-columns:1fr}.fttop{flex-direction:column}.shell{margin-top:12px}}
+</style>
+</head>
+<body>
+<header><div class="brand">G-Force • Controle de FT</div><div class="sub">Gestão administrativa • Supervisor → DP/RH → Financeiro</div></header>
+<main class="shell">
+<section id="loginCard" class="card login">
+<h2 class="sectionTitle">Acesso ao sistema</h2><p class="muted">Entre com seu e-mail e senha cadastrados.</p>
+<label>E-mail</label><input id="email" type="email" autocomplete="username">
+<label style="margin-top:12px">Senha</label><input id="senha" type="password" autocomplete="current-password">
+<div class="actions"><button id="entrar" class="primary">Entrar</button></div><div id="loginMsg"></div>
+</section>
+
+<section id="app" class="hidden">
+<div class="card toolbar"><div><h2 style="margin:0">Painel de Controle de FT</h2><div id="who" class="muted"></div></div><div class="actions" style="margin:0"><button id="novaBtn" class="primary hidden">+ Nova FT</button><button id="atualizar" class="ghost">Atualizar</button><button id="sair" class="ghost">Sair</button></div></div>
+<div id="msg"></div>
+
+<div class="stats">
+<div class="stat"><span class="muted small">Rascunhos/Correção</span><b id="sDraft">0</b></div>
+<div class="stat"><span class="muted small">DP/RH</span><b id="sDP">0</b></div>
+<div class="stat"><span class="muted small">Financeiro</span><b id="sFin">0</b></div>
+<div class="stat"><span class="muted small">Pagas</span><b id="sPaid">0</b></div>
+</div>
+
+<section id="novaCard" class="card hidden">
+<div class="toolbar"><h2 class="sectionTitle">Cadastrar nova FT</h2><button id="fecharNova" class="ghost">Fechar</button></div>
+<div class="grid3">
+<div><label>Data da FT</label><input id="fData" type="date"></div>
+<div><label>Unidade / Loja</label><select id="fUnidade"></select></div>
+<div><label>Motivo</label><select id="fMotivo"></select></div>
+</div>
+<div class="grid" style="margin-top:12px">
+<div><label>Nome do colaborador faltante</label><input id="fFaltante" placeholder="Quando aplicável"></div>
+<div><label>Nome do executor</label><input id="fExecutor"></div>
+<div><label>CPF do executor</label><input id="fCpf" inputmode="numeric"></div>
+<div><label>Tipo de PIX</label><select id="fTipoPix"><option>CPF</option><option>Celular</option><option>E-mail</option><option>Chave aleatória</option></select></div>
+<div><label>Chave PIX</label><input id="fPix"></div>
+<div><label>Valor da FT (R$)</label><input id="fValor" type="number" step="0.01" min="0"></div>
+</div>
+<label style="margin-top:12px">Observação</label><textarea id="fObs"></textarea>
+<div class="actions"><button id="criarFT" class="primary">Salvar FT como rascunho</button></div>
+</section>
+
+<section class="card">
+<div class="toolbar"><div><h2 class="sectionTitle">FTs</h2><span id="count" class="muted small"></span></div>
+<select id="filtro" style="width:auto;min-width:210px"><option value="">Todos os status</option><option value="rascunho">Rascunho</option><option value="aguardando_dp_rh">Aguardando DP/RH</option><option value="solicitar_correcao">Correção solicitada</option><option value="recusada">Recusada</option><option value="autorizada">Autorizada</option><option value="aguardando_pagamento">Aguardando pagamento</option><option value="paga">Paga</option></select></div>
+<div id="lista">Carregando...</div>
+</section>
+</section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const URL='https://cnuksifownmprsjqowzx.supabase.co';
+const KEY='sb_publishable_jlw1On59mgysdBYI1AgFsQ_XzoBAkv_';
+const sb=supabase.createClient(URL,KEY,{db:{schema:'ft'}});
+const $=id=>document.getElementById(id); let perfil=null, cache=[], unidades=[], motivos=[];
+const EVID=[['entrada','Entrada'],['saida_intervalo','Saída intervalo'],['retorno_intervalo','Retorno intervalo'],['termino_turno','Término do turno'],['documento_foto','Documento / foto']];
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function money(v){return Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
+function statusTxt(s){return ({rascunho:'Rascunho',aguardando_dp_rh:'Aguardando DP/RH',solicitar_correcao:'Correção solicitada',recusada:'Recusada',autorizada:'Autorizada',aguardando_pagamento:'Aguardando pagamento',paga:'Paga'})[s]||s}
+function aviso(t,erro=false){$('msg').innerHTML=`<div class="notice ${erro?'err':''}">${esc(t)}</div>`;window.scrollTo({top:0,behavior:'smooth'});setTimeout(()=>{if($('msg').textContent===t)$('msg').innerHTML=''},5000)}
+function setBusy(btn,text){btn.dataset.old=btn.textContent;btn.disabled=true;btn.textContent=text}
+function resetBusy(btn){btn.disabled=false;btn.textContent=btn.dataset.old||btn.textContent}
+async function perfilAtual(){const {data:{user}}=await sb.auth.getUser();if(!user)return false;const {data,error}=await sb.from('profiles').select('*').eq('id',user.id).single();if(error||!data||!data.ativo)return false;perfil=data;return true}
+async function refs(){const [u,m]=await Promise.all([sb.from('unidades').select('id,nome').eq('ativo',true).order('nome'),sb.from('motivos').select('id,nome,exige_faltante').eq('ativo',true).order('nome')]);unidades=u.data||[];motivos=m.data||[];$('fUnidade').innerHTML=unidades.map(x=>`<option value="${x.id}">${esc(x.nome)}</option>`).join('');$('fMotivo').innerHTML=motivos.map(x=>`<option value="${x.id}">${esc(x.nome)}</option>`).join('')}
+async function carregar(){
+ $('lista').innerHTML='<p class="muted">Atualizando...</p>';
+ const {data,error}=await sb.from('fts').select('id,protocolo,data_ft,nome_faltante,nome_executor,cpf_executor,tipo_pix,chave_pix,valor,status,supervisor_id,unidade_id,motivo_id,observacao_supervisor,dp_rh_obs,obs_financeiro,created_at').order('created_at',{ascending:false}).limit(200);
+ if(error){$('lista').innerHTML=`<div class="notice err">${esc(error.message)}</div>`;return}
+ cache=(data||[]).filter(x=>perfil.role!=='supervisor'||x.supervisor_id===perfil.id); render();
+}
+function render(){
+ const filtro=$('filtro').value;const rows=filtro?cache.filter(x=>x.status===filtro):cache;
+ $('count').textContent=`${rows.length} registro(s)`;
+ $('sDraft').textContent=cache.filter(x=>['rascunho','solicitar_correcao'].includes(x.status)).length;
+ $('sDP').textContent=cache.filter(x=>x.status==='aguardando_dp_rh').length;
+ $('sFin').textContent=cache.filter(x=>['autorizada','aguardando_pagamento'].includes(x.status)).length;
+ $('sPaid').textContent=cache.filter(x=>x.status==='paga').length;
+ if(!rows.length){$('lista').innerHTML='<p class="muted">Nenhuma FT encontrada.</p>';return}
+ $('lista').innerHTML=rows.map(x=>card(x)).join('');
+}
+function card(x){
+ const un=unidades.find(u=>u.id===x.unidade_id)?.nome||'-', mo=motivos.find(m=>m.id===x.motivo_id)?.nome||'-';
+ let acts='';
+ if(['administrador','supervisor'].includes(perfil.role)&&['rascunho','solicitar_correcao'].includes(x.status)) acts+=`<button class="primary" onclick="enviar('${x.id}',this)">Enviar para DP/RH</button>`;
+ if(['administrador','dp_rh'].includes(perfil.role)&&x.status==='aguardando_dp_rh') acts+=`<button class="success" onclick="decidir('${x.id}','autorizar',this)">Autorizar</button><button class="warn" onclick="decidir('${x.id}','corrigir',this)">Solicitar correção</button><button class="danger" onclick="decidir('${x.id}','recusar',this)">Recusar</button>`;
+ if(['administrador','financeiro'].includes(perfil.role)&&['autorizada','aguardando_pagamento'].includes(x.status)) acts+=`<button class="success" onclick="pagar('${x.id}',this)">Confirmar pagamento</button>`;
+ const evidence=['rascunho','solicitar_correcao'].includes(x.status)&&['administrador','supervisor'].includes(perfil.role)?`<div class="evidence"><b>5 evidências obrigatórias antes do envio</b><div class="filegrid" style="margin-top:8px">${EVID.map(([k,n])=>`<div class="filebox"><label>${n}</label><input id="ev_${x.id}_${k}" type="file" accept="image/*,.pdf"></div>`).join('')}</div><div class="actions"><button class="ghost" onclick="subirEvidencias('${x.id}',this)">Salvar evidências</button></div></div>`:'';
+ return `<article class="ft" id="ft_${x.id}"><div class="fttop"><div><h3>${esc(x.protocolo||'FT')}</h3><span class="muted small">Lançada em ${new Date(x.created_at).toLocaleString('pt-BR')}</span></div><span class="badge ${x.status}">${esc(statusTxt(x.status))}</span></div><div class="detail"><div><b>Data:</b> ${esc(x.data_ft)}</div><div><b>Loja:</b> ${esc(un)}</div><div><b>Motivo:</b> ${esc(mo)}</div><div><b>Executor:</b> ${esc(x.nome_executor)}</div><div><b>Faltante:</b> ${esc(x.nome_faltante||'-')}</div><div><b>Valor:</b> ${money(x.valor)}</div></div>${x.dp_rh_obs?`<p class="small"><b>DP/RH:</b> ${esc(x.dp_rh_obs)}</p>`:''}${x.obs_financeiro?`<p class="small"><b>Financeiro:</b> ${esc(x.obs_financeiro)}</p>`:''}<div class="actions">${acts}</div>${evidence}</article>`
+}
+async function criar(){
+ const b=$('criarFT');setBusy(b,'Salvando...');
+ const val=Number($('fValor').value.replace?.(',','.')||$('fValor').value);
+ const args={p_unidade:$('fUnidade').value,p_motivo:$('fMotivo').value,p_data:$('fData').value,p_nome_faltante:$('fFaltante').value.trim()||null,p_executor:$('fExecutor').value.trim(),p_cpf:$('fCpf').value.trim(),p_tipo_pix:$('fTipoPix').value,p_chave_pix:$('fPix').value.trim(),p_valor:val,p_obs:$('fObs').value.trim()||null};
+ if(!args.p_data||!args.p_executor||!args.p_cpf||!args.p_chave_pix||!Number.isFinite(val)){aviso('Preencha os campos obrigatórios da FT.',true);resetBusy(b);return}
+ const {error}=await sb.rpc('admin_create_draft',args);if(error){aviso(error.message,true);resetBusy(b);return}
+ aviso('FT cadastrada com sucesso. Agora anexe as 5 evidências.');$('novaCard').classList.add('hidden');resetBusy(b);await carregar();
+}
+async function subirEvidencias(id,b){
+ setBusy(b,'Salvando evidências...');let enviados=0;
+ for(const [tipo] of EVID){const input=$(`ev_${id}_${tipo}`);if(!input?.files?.[0])continue;const file=input.files[0];const ext=(file.name.split('.').pop()||'bin').replace(/[^a-z0-9]/gi,'');const path=`${id}/${tipo}-${Date.now()}.${ext}`;const up=await sb.storage.from('controle-ft').upload(path,file,{upsert:true});if(up.error){aviso(`Erro em ${tipo}: ${up.error.message}`,true);resetBusy(b);return}const ins=await sb.from('evidencias').insert({ft_id:id,tipo,storage_path:path,enviado_por:perfil.id});if(ins.error){aviso(`Arquivo enviado, mas houve erro no registro: ${ins.error.message}`,true);resetBusy(b);return}enviados++}
+ if(!enviados){aviso('Selecione pelo menos um arquivo.',true);resetBusy(b);return}aviso(`${enviados} evidência(s) salva(s) com sucesso.`);resetBusy(b)
+}
+async function enviar(id,b){setBusy(b,'Enviando...');const {error}=await sb.rpc('submit_ft',{p_ft:id});if(error){aviso(error.message,true);resetBusy(b);return}document.getElementById(`ft_${id}`)?.remove();aviso('FT Enviada Com Sucesso');await carregar()}
+async function decidir(id,acao,b){setBusy(b,'Confirmando...');let obs=null;if(acao!=='autorizar'){obs=prompt(acao==='corrigir'?'Informe a correção necessária:':'Informe o motivo da recusa:');if(obs===null){resetBusy(b);return}}const {error}=await sb.rpc('dp_decide',{p_ft:id,p_acao:acao,p_obs:obs});if(error){aviso(error.message,true);resetBusy(b);return}document.getElementById(`ft_${id}`)?.remove();aviso('DP/RH Confirmação Realizada Com Sucesso');await carregar()}
+async function pagar(id,b){setBusy(b,'Processando...');const obs=prompt('Observação do pagamento (opcional):')||null;const {error}=await sb.rpc('finance_pay',{p_ft:id,p_obs:obs});if(error){aviso(error.message,true);resetBusy(b);return}document.getElementById(`ft_${id}`)?.remove();aviso('Financeiro - Pago Com Sucesso');await carregar()}
+async function entrar(){const b=$('entrar');setBusy(b,'Entrando...');$('loginMsg').innerHTML='';const {error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('senha').value});if(error){$('loginMsg').innerHTML=`<div class="notice err">E-mail ou senha inválidos.</div>`;resetBusy(b);return}if(!await perfilAtual()){await sb.auth.signOut();$('loginMsg').innerHTML='<div class="notice err">Usuário sem perfil ativo.</div>';resetBusy(b);return}await mostrar()}
+async function mostrar(){$('loginCard').classList.add('hidden');$('app').classList.remove('hidden');$('who').innerHTML=`${esc(perfil.nome_completo)} &nbsp; <span class="role">${esc(perfil.role)}</span>`;if(perfil.role==='administrador')$('novaBtn').classList.remove('hidden');$('fData').value=new Date().toISOString().slice(0,10);await refs();await carregar()}
+$('entrar').onclick=entrar;$('senha').addEventListener('keydown',e=>{if(e.key==='Enter')entrar()});$('sair').onclick=async()=>{await sb.auth.signOut();location.reload()};$('atualizar').onclick=carregar;$('filtro').onchange=render;$('novaBtn').onclick=()=>{$('novaCard').classList.remove('hidden');$('novaCard').scrollIntoView({behavior:'smooth'})};$('fecharNova').onclick=()=>$('novaCard').classList.add('hidden');$('criarFT').onclick=criar;
+(async()=>{const {data:{session}}=await sb.auth.getSession();if(session&&await perfilAtual())await mostrar()})();
+</script>
+</body></html>
