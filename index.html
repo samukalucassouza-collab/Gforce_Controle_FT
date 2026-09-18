@@ -74,11 +74,14 @@ textarea{min-height:82px;resize:vertical}button{border:0;border-radius:9px;paddi
 </section>
 </main>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+window.__supabaseReady=false;
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" onload="window.__supabaseReady=true" onerror="this.onerror=null;this.src='https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js';"></script>
 <script>
 const URL='https://cnuksifownmprsjqowzx.supabase.co';
 const KEY='sb_publishable_jlw1On59mgysdBYI1AgFsQ_XzoBAkv_';
-const sb=supabase.createClient(URL,KEY,{db:{schema:'ft'}});
+const sb=(window.supabase&&window.supabase.createClient)?window.supabase.createClient(URL,KEY,{db:{schema:'ft'}}):null;
 const $=id=>document.getElementById(id); let perfil=null, cache=[], unidades=[], motivos=[];
 const EVID=[['entrada','Entrada'],['saida_intervalo','Saída intervalo'],['retorno_intervalo','Retorno intervalo'],['termino_turno','Término do turno'],['documento_foto','Documento / foto']];
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -130,9 +133,9 @@ async function subirEvidencias(id,b){
 async function enviar(id,b){setBusy(b,'Enviando...');const {error}=await sb.rpc('submit_ft',{p_ft:id});if(error){aviso(error.message,true);resetBusy(b);return}document.getElementById(`ft_${id}`)?.remove();aviso('FT Enviada Com Sucesso');await carregar()}
 async function decidir(id,acao,b){setBusy(b,'Confirmando...');let obs=null;if(acao!=='autorizar'){obs=prompt(acao==='corrigir'?'Informe a correção necessária:':'Informe o motivo da recusa:');if(obs===null){resetBusy(b);return}}const {error}=await sb.rpc('dp_decide',{p_ft:id,p_acao:acao,p_obs:obs});if(error){aviso(error.message,true);resetBusy(b);return}document.getElementById(`ft_${id}`)?.remove();aviso('DP/RH Confirmação Realizada Com Sucesso');await carregar()}
 async function pagar(id,b){setBusy(b,'Processando...');const obs=prompt('Observação do pagamento (opcional):')||null;const {error}=await sb.rpc('finance_pay',{p_ft:id,p_obs:obs});if(error){aviso(error.message,true);resetBusy(b);return}document.getElementById(`ft_${id}`)?.remove();aviso('Financeiro - Pago Com Sucesso');await carregar()}
-async function entrar(){const b=$('entrar');setBusy(b,'Entrando...');$('loginMsg').innerHTML='';const {error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('senha').value});if(error){$('loginMsg').innerHTML=`<div class="notice err">E-mail ou senha inválidos.</div>`;resetBusy(b);return}if(!await perfilAtual()){await sb.auth.signOut();$('loginMsg').innerHTML='<div class="notice err">Usuário sem perfil ativo.</div>';resetBusy(b);return}await mostrar()}
+async function entrar(){const b=$('entrar');$('loginMsg').innerHTML='';try{if(!sb){$('loginMsg').innerHTML='<div class="notice err">Falha ao carregar a conexão do sistema. Atualize a página e tente novamente.</div>';return}setBusy(b,'Entrando...');const email=$('email').value.trim(),password=$('senha').value;if(!email||!password){$('loginMsg').innerHTML='<div class="notice err">Informe e-mail e senha.</div>';resetBusy(b);return}const {error}=await sb.auth.signInWithPassword({email,password});if(error){$('loginMsg').innerHTML=`<div class="notice err">Não foi possível entrar: ${esc(error.message)}</div>`;resetBusy(b);return}if(!await perfilAtual()){await sb.auth.signOut();$('loginMsg').innerHTML='<div class="notice err">Login realizado, mas o usuário não possui perfil ativo no sistema.</div>';resetBusy(b);return}await mostrar()}catch(e){$('loginMsg').innerHTML=`<div class="notice err">Erro técnico no login: ${esc(e?.message||e)}</div>`;resetBusy(b)}}
 async function mostrar(){$('loginCard').classList.add('hidden');$('app').classList.remove('hidden');$('who').innerHTML=`${esc(perfil.nome_completo)} &nbsp; <span class="role">${esc(perfil.role)}</span>`;if(perfil.role==='administrador')$('novaBtn').classList.remove('hidden');$('fData').value=new Date().toISOString().slice(0,10);await refs();await carregar()}
 $('entrar').onclick=entrar;$('senha').addEventListener('keydown',e=>{if(e.key==='Enter')entrar()});$('sair').onclick=async()=>{await sb.auth.signOut();location.reload()};$('atualizar').onclick=carregar;$('filtro').onchange=render;$('novaBtn').onclick=()=>{$('novaCard').classList.remove('hidden');$('novaCard').scrollIntoView({behavior:'smooth'})};$('fecharNova').onclick=()=>$('novaCard').classList.add('hidden');$('criarFT').onclick=criar;
-(async()=>{const {data:{session}}=await sb.auth.getSession();if(session&&await perfilAtual())await mostrar()})();
+(async()=>{try{if(!sb){$('loginMsg').innerHTML='<div class="notice err">A conexão do sistema não carregou. Use Ctrl+F5 e tente novamente.</div>';return}const {data:{session}}=await sb.auth.getSession();if(session&&await perfilAtual())await mostrar()}catch(e){$('loginMsg').innerHTML=`<div class="notice err">Erro ao iniciar o sistema: ${esc(e?.message||e)}</div>`}})();
 </script>
 </body></html>
