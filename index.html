@@ -361,27 +361,48 @@ function renderPaymentHistory(){
  document.getElementById('financePaidCount').textContent=String(rows.length);
  document.getElementById('financePaidTotal').textContent=moneyBR(rows.reduce((a,x)=>a+x.value,0));
  const scope=document.getElementById('financeHistoryScope');if(scope)scope.textContent=currentUser?.dbRole==='financeiro'?'Meus pagamentos registrados.':'Histórico de pagamentos registrados.';
- body.innerHTML=rows.map(x=>`<tr><td>${escHtml(x.id)}</td><td>${escHtml(x.date||'—')}</td><td>${escHtml(x.supervisor)}</td><td>${escHtml(x.unit)}</td><td>${escHtml(x.worker)}</td><td>${escHtml(x.cpf||'—')}</td><td>${escHtml(x.pixtype)}: ${escHtml(x.pix)}</td><td>${moneyBR(x.value)}</td><td>${escHtml(x.paidAt||x.paid||'—')}</td><td>${escHtml(x.financeiro||'Financeiro')}</td><td><button class="receipt-btn" onclick="viewPaymentReceipt('${x.dbid}')">📎 Ver comprovante</button></td></tr>`).join('')||'<tr><td colspan="11">Nenhum pagamento concluído neste período.</td></tr>';
+ body.innerHTML=rows.map(x=>`<tr><td>${escHtml(x.id)}</td><td>${escHtml(x.date||'—')}</td><td>${escHtml(x.supervisor)}</td><td>${escHtml(x.unit)}</td><td>${escHtml(x.worker)}</td><td>${escHtml(x.cpf||'—')}</td><td>${escHtml(x.pixtype)}: ${escHtml(x.pix)}</td><td>${moneyBR(x.value)}</td><td>${escHtml(x.paidAt||x.paid||'—')}</td><td>${escHtml(x.financeiro||'Financeiro')}</td><td><button class="receipt-btn" onclick="managePaymentReceipt('${x.dbid}')">📎 Ver / Inserir comprovante</button></td></tr>`).join('')||'<tr><td colspan="11">Nenhum pagamento concluído neste período.</td></tr>';
 }
 async function viewPaymentReceipt(ftid){
  try{
   const {data,error}=await ftDb().from('evidencias').select('storage_path,created_at').eq('ft_id',ftid).eq('tipo','comprovante_pagamento').order('created_at',{ascending:false}).limit(1);
-  if(error)throw error;if(!data?.length){alert('Este pagamento não possui comprovante anexado. Os pagamentos antigos podem ter sido registrados antes desta função.');return}
+  if(error)throw error;if(!data?.length){return false}
   const {data:signed,error:signErr}=await sb.storage.from('controle-ft').createSignedUrl(data[0].storage_path,600);if(signErr||!signed?.signedUrl)throw signErr||new Error('Não foi possível abrir o comprovante.');
-  window.open(signed.signedUrl,'_blank','noopener');
- }catch(e){alert('Não foi possível abrir o comprovante: '+(e.message||e))}
+  window.open(signed.signedUrl,'_blank','noopener');return true;
+ }catch(e){alert('Não foi possível abrir o comprovante: '+(e.message||e));return null}
+}
+async function managePaymentReceipt(ftid){
+ try{
+  const {data,error}=await ftDb().from('evidencias').select('storage_path,created_at').eq('ft_id',ftid).eq('tipo','comprovante_pagamento').order('created_at',{ascending:false}).limit(1);
+  if(error)throw error;
+  if(data?.length){await viewPaymentReceipt(ftid);return}
+  const input=document.createElement('input');input.type='file';input.accept='image/*,application/pdf';input.style.display='none';document.body.appendChild(input);
+  input.onchange=async()=>{const file=input.files?.[0];input.remove();if(!file)return;let path='';
+   try{
+    const ext=(file.name.split('.').pop()||'jpg').replace(/[^a-z0-9]/gi,'').toLowerCase();
+    path=`${ftid}/comprovante_pagamento-${Date.now()}.${ext}`;
+    const up=await sb.storage.from('controle-ft').upload(path,file,{upsert:false,contentType:file.type||undefined});if(up.error)throw up.error;
+    const ev=await ftDb().from('evidencias').insert({ft_id:ftid,tipo:'comprovante_pagamento',storage_path:path,enviado_por:currentUser.authId});if(ev.error)throw ev.error;
+    showActionSuccess('Comprovante inserido com sucesso');
+   }catch(e){if(path){try{await sb.storage.from('controle-ft').remove([path])}catch(_){}}alert('Não foi possível inserir o comprovante: '+(e.message||e))}
+  };
+  input.click();
+ }catch(e){alert('Não foi possível verificar o comprovante: '+(e.message||e))}
 }
 async function pay(i,btn){
  if(window.__payingFT)return;
  const x=fts[i];if(!x?.dbid){alert('FT não localizada.');return}
  const input=document.getElementById(`receipt_${i}`),file=input?.files?.[0];
- if(!file){alert('Anexe o comprovante do pagamento antes de confirmar.');return}
  window.__payingFT=true;if(btn){btn.disabled=true;btn.textContent='Registrando pagamento...'}
  let path='';
  try{
-  const ext=(file.name.split('.').pop()||'jpg').replace(/[^a-z0-9]/gi,'').toLowerCase();path=`${x.dbid}/comprovante_pagamento-${Date.now()}.${ext}`;
-  const up=await sb.storage.from('controle-ft').upload(path,file,{upsert:false,contentType:file.type||undefined});if(up.error)throw up.error;
-  const {error}=await ftDb().rpc('finance_pay_with_receipt',{p_ft:x.dbid,p_storage_path:path,p_pago_em:new Date().toISOString(),p_obs:'Pagamento registrado com comprovante.'});if(error)throw error;
+  if(file){
+   const ext=(file.name.split('.').pop()||'jpg').replace(/[^a-z0-9]/gi,'').toLowerCase();path=`${x.dbid}/comprovante_pagamento-${Date.now()}.${ext}`;
+   const up=await sb.storage.from('controle-ft').upload(path,file,{upsert:false,contentType:file.type||undefined});if(up.error)throw up.error;
+   const {error}=await ftDb().rpc('finance_pay_with_receipt',{p_ft:x.dbid,p_storage_path:path,p_pago_em:new Date().toISOString(),p_obs:'Pagamento registrado com comprovante.'});if(error)throw error;
+  }else{
+   const {error}=await ftDb().rpc('finance_pay',{p_ft:x.dbid,p_pago_em:new Date().toISOString(),p_obs:'Pagamento registrado. Comprovante poderá ser inserido posteriormente.'});if(error)throw error;
+  }
   if(btn){btn.className='success';btn.textContent='✓ Pago com sucesso'}
   showActionSuccess?.('Financeiro - Pago Com Sucesso');
   await loadCloud();
@@ -521,7 +542,7 @@ window.renderModernViews=function(){
 }
 window.renderSupervisorRanking=function(){const box=$('supervisorRanking');if(!box)return;let rows=[...fts];const mode=$('rankPeriod')?.value||'month',now=new Date(),ym=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;let target=ym(now);if(mode==='previous'){const d=new Date(now.getFullYear(),now.getMonth()-1,1);target=ym(d)}if(mode!=='all')rows=rows.filter(x=>String(x.date||'').slice(0,7)===target);rows=rows.filter(x=>x.rawStatus!=='recusada');const m=new Map();for(const x of rows){const k=x.supervisor||'—',v=m.get(k)||{count:0,value:0};v.count++;v.value+=Number(x.value||0);m.set(k,v)}const arr=[...m].sort((a,b)=>b[1].count-a[1].count||b[1].value-a[1].value);const peak=Math.max(1,...arr.map(x=>x[1].count));box.innerHTML=arr.map(([name,v],i)=>`<div class="rank-row"><div class="rank-pos">${i+1}º ${escHtml(name)}</div><div class="rank-track"><div class="rank-fill" style="width:${v.count/peak*100}%"></div></div><div class="rank-count">${v.count} FT${v.count===1?'':'s'}</div><div class="rank-value">${money(v.value)}</div></div>`).join('')||'<p class="smallmuted">Nenhuma FT registrada neste período.</p>'}
 function groupPendingPayments(){const pending=fts.filter(x=>x.rawStatus==='autorizada'||x.status==='Autorizada');const m=new Map();for(const x of pending){const cpf=normalizeCpf(x.cpf),key=cpf||('nome:'+String(x.worker||'').trim().toLocaleLowerCase('pt-BR'));if(!m.has(key))m.set(key,[]);m.get(key).push(x)}return m}
-window.renderBatchPayments=function(){const box=$('batchPayList');if(!box)return;const groups=groupPendingPayments();box.innerHTML=[...groups].map(([key,rows],gi)=>{rows.sort((a,b)=>String(a.date).localeCompare(String(b.date)));const total=rows.reduce((a,x)=>a+x.value,0),first=rows[0];return `<div class="batch-pay-card" data-group="${gi}"><div class="batch-pay-head"><div><div class="batch-pay-name">${escHtml(first.worker)}</div><div class="smallmuted">CPF ${escHtml(first.cpf||'—')} • PIX ${escHtml(first.pixtype)}: ${escHtml(first.pix)}</div></div><div class="batch-pay-total" id="batchTotal_${gi}">${money(total)}</div></div><div class="batch-ft-grid">${rows.map(x=>`<label class="batch-ft-row"><input type="checkbox" class="batchCheck_${gi}" value="${x.dbid}" checked onchange="updateBatchTotal(${gi})"><b>${escHtml(x.id)}</b><span>${escHtml(x.date||'—')}</span><span class="batch-unit">${escHtml(x.unit)}</span><span class="batch-value">${money(x.value)}</span></label>`).join('')}</div><div class="batch-pay-actions"><div class="field"><label>Comprovante Único do Pagamento</label><input id="batchReceipt_${gi}" type="file" accept="image/*,application/pdf"></div><button class="success" onclick="payBatch(${gi},this)">Confirmar Pagamento de ${money(total)}</button></div><div class="upload-progress" id="batchProgress_${gi}"><span></span></div></div>`}).join('')||'<div class="notice">Nenhuma FT autorizada aguardando pagamento.</div>';window.__batchGroups=[...groups]}
+window.renderBatchPayments=function(){const box=$('batchPayList');if(!box)return;const groups=groupPendingPayments();box.innerHTML=[...groups].map(([key,rows],gi)=>{rows.sort((a,b)=>String(a.date).localeCompare(String(b.date)));const total=rows.reduce((a,x)=>a+x.value,0),first=rows[0];return `<div class="batch-pay-card" data-group="${gi}"><div class="batch-pay-head"><div><div class="batch-pay-name">${escHtml(first.worker)}</div><div class="smallmuted">CPF ${escHtml(first.cpf||'—')} • PIX ${escHtml(first.pixtype)}: ${escHtml(first.pix)}</div></div><div class="batch-pay-total" id="batchTotal_${gi}">${money(total)}</div></div><div class="batch-ft-grid">${rows.map(x=>`<label class="batch-ft-row"><input type="checkbox" class="batchCheck_${gi}" value="${x.dbid}" checked onchange="updateBatchTotal(${gi})"><b>${escHtml(x.id)}</b><span>${escHtml(x.date||'—')}</span><span class="batch-unit">${escHtml(x.unit)}</span><span class="batch-value">${money(x.value)}</span></label>`).join('')}</div><div class="batch-pay-actions"><div class="field"><label>Comprovante do Pagamento <span class="smallmuted">(opcional — pode inserir depois)</span></label><input id="batchReceipt_${gi}" type="file" accept="image/*,application/pdf"></div><button class="success" onclick="payBatch(${gi},this)">Confirmar Pagamento de ${money(total)}</button></div><div class="upload-progress" id="batchProgress_${gi}"><span></span></div></div>`}).join('')||'<div class="notice">Nenhuma FT autorizada aguardando pagamento.</div>';window.__batchGroups=[...groups]}
 window.updateBatchTotal=function(gi){const pair=window.__batchGroups?.[gi];if(!pair)return;const rows=pair[1],sel=new Set([...document.querySelectorAll(`.batchCheck_${gi}:checked`)].map(x=>x.value));const total=rows.filter(x=>sel.has(x.dbid)).reduce((a,x)=>a+x.value,0);const el=$(`batchTotal_${gi}`);if(el)el.textContent=money(total);const btn=document.querySelector(`[data-group="${gi}"] .batch-pay-actions button`);if(btn)btn.textContent=`Confirmar Pagamento de ${money(total)}`}
 window.payBatch=async function(gi,btn){
  if(window.__batchPaying)return;
@@ -554,13 +575,14 @@ window.payBatch=async function(gi,btn){
   }
 
   const file=$(`batchReceipt_${gi}`)?.files?.[0];
-  if(!file)throw new Error('Anexe o comprovante único do pagamento.');
-
-  btn.textContent='Enviando comprovante...';
-  const ext=(file.name.split('.').pop()||'jpg').replace(/[^a-z0-9]/gi,'').toLowerCase();
-  const path=`${payable[0].dbid}/comprovante-lote-${Date.now()}.${ext}`;
-  const up=await sb.storage.from('controle-ft').upload(path,file,{upsert:false,contentType:file.type||undefined});
-  if(up.error)throw up.error;
+  let path=null;
+  if(file){
+   btn.textContent='Enviando comprovante...';
+   const ext=(file.name.split('.').pop()||'jpg').replace(/[^a-z0-9]/gi,'').toLowerCase();
+   path=`${payable[0].dbid}/comprovante-lote-${Date.now()}.${ext}`;
+   const up=await sb.storage.from('controle-ft').upload(path,file,{upsert:false,contentType:file.type||undefined});
+   if(up.error)throw up.error;
+  }
   if(bar)bar.style.width='40%';
 
   btn.textContent='Registrando pagamento...';
@@ -569,7 +591,7 @@ window.payBatch=async function(gi,btn){
    p_ft_ids:payable.map(x=>x.dbid),
    p_storage_path:path,
    p_pago_em:paidAt,
-   p_obs:`Pagamento em lote: ${payable.length} FT(s), comprovante único.`
+   p_obs:file?`Pagamento em lote: ${payable.length} FT(s), comprovante único.`:`Pagamento em lote: ${payable.length} FT(s). Comprovante pendente.`
   });
   if(payErr)throw payErr;
 
