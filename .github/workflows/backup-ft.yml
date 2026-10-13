@@ -1,0 +1,53 @@
+name: Backup FT (manual, protegido)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      DATABASE_URL: ${{ secrets.FT_BACKUP_DATABASE_URL }}
+      SUPABASE_URL: ${{ secrets.FT_BACKUP_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.FT_BACKUP_SERVICE_ROLE_KEY }}
+      AGE_RECIPIENT: ${{ secrets.FT_BACKUP_AGE_RECIPIENT }}
+      RCLONE_CONFIG_DRIVE_TYPE: drive
+      RCLONE_CONFIG_DRIVE_TOKEN: ${{ secrets.FT_BACKUP_DRIVE_TOKEN }}
+      RCLONE_CONFIG_DRIVE_ROOT_FOLDER_ID: 1qoK4KDdYwkdSvG-RaKJylpo-G-sqF-7c
+    steps:
+      - uses: actions/checkout@v4
+      - name: Conferir configuração sem exibir segredos
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in DATABASE_URL SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY AGE_RECIPIENT RCLONE_CONFIG_DRIVE_TOKEN; do
+            if [ -z "${!v:-}" ]; then echo "::error::Credencial ausente: $v"; exit 1; fi
+          done
+      - name: Instalar ferramentas
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq age rclone
+      - name: Exportar banco e arquivos
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ft-backup"
+          docker run --rm --network host -e DATABASE_URL postgres:17             sh -c 'pg_dump --dbname="$DATABASE_URL" --format=custom --no-owner --no-acl'             > "$RUNNER_TEMP/ft-backup/database.dump"
+          pg_restore --list "$RUNNER_TEMP/ft-backup/database.dump" >/dev/null
+          python3 backup/download_storage.py "$RUNNER_TEMP/ft-backup"
+      - name: Criptografar e enviar ao Drive privado
+        shell: bash
+        run: |
+          set -euo pipefail
+          stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          tar -C "$RUNNER_TEMP" -czf - ft-backup | age -r "$AGE_RECIPIENT" -o "$RUNNER_TEMP/FT-$stamp.tar.gz.age"
+          rclone copyto "$RUNNER_TEMP/FT-$stamp.tar.gz.age" "drive:Diários/FT-$stamp.tar.gz.age" --retries 3
+          rclone lsjson "drive:Diários/FT-$stamp.tar.gz.age" >/dev/null
+          echo "Upload criptografado concluído: FT-$stamp.tar.gz.age"
+      - name: Limpeza do runner
+        if: always()
+        shell: bash
+        run: rm -rf "$RUNNER_TEMP/ft-backup" "$RUNNER_TEMP"/FT-*.tar.gz.age
