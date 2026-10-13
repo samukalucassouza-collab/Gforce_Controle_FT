@@ -35,7 +35,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/ft-backup"
-          docker run --rm --network host -e DATABASE_URL postgres:17             sh -c 'pg_dump --dbname="$DATABASE_URL" --format=custom --no-owner --no-acl'             > "$RUNNER_TEMP/ft-backup/database.dump"
+          docker run --rm --network host -e DATABASE_URL postgres:17             sh -c 'pg_dump --dbname="$DATABASE_URL" --schema=ft --format=custom --no-owner --no-acl'             > "$RUNNER_TEMP/ft-backup/database.dump"
           docker run --rm -v "$RUNNER_TEMP/ft-backup:/backup:ro" postgres:17 pg_restore --list /backup/database.dump >/dev/null
           python3 backup/download_storage.py "$RUNNER_TEMP/ft-backup"
       - name: Criptografar e enviar ao Drive privado
