@@ -36,7 +36,7 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/ft-backup"
           docker run --rm --network host -e DATABASE_URL postgres:17             sh -c 'pg_dump --dbname="$DATABASE_URL" --format=custom --no-owner --no-acl'             > "$RUNNER_TEMP/ft-backup/database.dump"
-          pg_restore --list "$RUNNER_TEMP/ft-backup/database.dump" >/dev/null
+          docker run --rm -v "$RUNNER_TEMP/ft-backup:/backup:ro" postgres:17 pg_restore --list /backup/database.dump >/dev/null
           python3 backup/download_storage.py "$RUNNER_TEMP/ft-backup"
       - name: Criptografar e enviar ao Drive privado
         shell: bash
@@ -45,7 +45,9 @@ jobs:
           stamp="$(date -u +%Y%m%dT%H%M%SZ)"
           tar -C "$RUNNER_TEMP" -czf - ft-backup | age -r "$AGE_RECIPIENT" -o "$RUNNER_TEMP/FT-$stamp.tar.gz.age"
           rclone copyto "$RUNNER_TEMP/FT-$stamp.tar.gz.age" "drive:Diários/FT-$stamp.tar.gz.age" --retries 3
-          rclone lsjson "drive:Diários/FT-$stamp.tar.gz.age" >/dev/null
+          local_size="$(stat -c %s "$RUNNER_TEMP/FT-$stamp.tar.gz.age")"
+          remote_size="$(rclone size "drive:Diários/FT-$stamp.tar.gz.age" --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["bytes"])')"
+          test "$local_size" = "$remote_size" || { echo '::error::Tamanho do arquivo remoto diverge'; exit 1; }
           echo "Upload criptografado concluído: FT-$stamp.tar.gz.age"
       - name: Limpeza do runner
         if: always()
