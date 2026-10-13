@@ -57,6 +57,10 @@ def traverse(prefix=""):
 
 
 traverse()
+if not manifest:
+    raise RuntimeError("Storage vazio: interrompendo backup para revisão")
+if len(manifest) != len(seen):
+    raise RuntimeError("Contagem de objetos divergente")
 (destination / "manifest.json").write_text(
     json.dumps({"bucket": bucket, "count": len(manifest), "objects": manifest}, ensure_ascii=False, indent=2),
     encoding="utf-8",
