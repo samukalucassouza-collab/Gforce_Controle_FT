@@ -191,9 +191,71 @@ const ftDb=()=>sb.schema('ft');
 const roleLabel={administrador:'Administrador',supervisor:'Supervisor',dp_rh:'DP',financeiro:'Financeiro'};
 const statusLabel={rascunho:'Rascunho',aguardando_dp_rh:'Aguardando DP',solicitar_correcao:'Correção solicitada',recusada:'Recusada',autorizada:'Autorizada',aguardando_pagamento:'Aguardando Pagamento',paga:'Paga'};
 let unitMap={},reasonMap={};
-async function loadProfile(user){const {data,error}=await ftDb().from('profiles').select('id,nome_completo,email,role,ativo').eq('id',user.id).single();if(error||!data)throw new Error('Perfil do Controle de FT não encontrado.');currentUser={name:data.nome_completo,role:roleLabel[data.role]||data.role,dbRole:data.role,login:data.email,units:[],active:data.ativo?'Ativo':'Inativo',authId:user.id};if(!data.ativo)throw new Error('Usuário inativo.');if(data.role==='supervisor'){const {data:su}=await ftDb().from('supervisor_unidades').select('unidade_id').eq('supervisor_id',user.id);currentUser.unitIds=(su||[]).map(x=>x.unidade_id)}}
-async function loadCloud(){const [{data:us},{data:rs},{data:vs},{data:ps},{data:rows,error}]=await Promise.all([ftDb().from('unidades').select('*').order('nome'),ftDb().from('motivos').select('*').order('nome'),ftDb().from('valores_ft').select('*').order('descricao'),ftDb().from('profiles').select('id,nome_completo,email,role,ativo'),ftDb().from('fts').select('*').order('data_lancamento',{ascending:false})]);if(error)throw error;unitMap=Object.fromEntries((us||[]).map(x=>[x.id,x]));reasonMap=Object.fromEntries((rs||[]).map(x=>[x.id,x]));unitRecords=(us||[]).map(x=>({id:x.id,name:x.nome,active:x.ativo?'Ativo':'Inativo'}));reasonRecords=(rs||[]).map(x=>({id:x.id,name:x.nome,active:x.ativo?'Ativo':'Inativo',requiresAbsent:x.exige_faltante}));ftValues=(vs||[]).map(x=>({id:x.id,name:x.descricao,amount:Number(x.valor),active:x.ativo?'Ativo':'Inativo',reason_id:x.motivo_id}));users=(ps||[]).map(x=>({id:x.id,name:x.nome_completo,login:x.email,role:roleLabel[x.role]||x.role,active:x.ativo?'Ativo':'Inativo',units:[]}));const pm=Object.fromEntries((ps||[]).map(x=>[x.id,x]));fts=(rows||[]).map(x=>({dbid:x.id,id:x.protocolo,year:x.ano,date:x.data_ft,supervisor:pm[x.supervisor_id]?.nome_completo||'—',supervisor_id:x.supervisor_id,unit:unitMap[x.unidade_id]?.nome||'—',unit_id:x.unidade_id,reason:reasonMap[x.motivo_id]?.nome||'—',reason_id:x.motivo_id,absent:x.nome_faltante||'',worker:x.nome_executor,cpf:x.cpf_executor,pixtype:x.tipo_pix,pix:x.chave_pix,value:Number(x.valor),status:statusLabel[x.status]||x.status,rawStatus:x.status,paid:x.pago_em?new Date(x.pago_em).toLocaleDateString('pt-BR'):'',paidAtRaw:x.pago_em||'',paidAt:x.pago_em?new Date(x.pago_em).toLocaleString('pt-BR'):'',financeiro_id:x.financeiro_id||'',financeiro:pm[x.financeiro_id]?.nome_completo||(x.financeiro_id?'Financeiro':'—'),supervisorObs:x.observacao_supervisor||'',dpRhObs:x.dp_rh_obs||'',dpRhAtRaw:x.dp_rh_em||'',createdAtRaw:x.data_lancamento||x.created_at||'',updatedAtRaw:x.updated_at||''}));if(currentUser?.dbRole==='supervisor')currentUser.units=unitRecords.filter(x=>currentUser.unitIds?.includes(x.id)).map(x=>x.name);refreshSystemLists();renderUsers();renderRegistries();render()}
-const oldDoLogin=doLogin;doLogin=async function(){let login=loginUser.value.trim().toLowerCase(),pass=loginPass.value;if(!login||!pass){loginError.textContent='Informe e-mail e senha.';loginError.style.display='block';return}loginError.style.display='none';const {data,error}=await sb.auth.signInWithPassword({email:login,password:pass});if(error||!data.user){loginError.textContent='Login ou senha inválidos.';loginError.style.display='block';return}try{await loadProfile(data.user)}catch(e){loginError.textContent=e.message||'Não foi possível carregar seu perfil.';loginError.style.display='block';return}loginScreen.style.display='none';logoutBtn.classList.remove('hidden');rolePill.classList.remove('hidden');try{await loadCloud()}catch(e){console.error('Falha temporária ao carregar dados:',e);showActionError?.('Acesso realizado. Houve demora ao carregar alguns dados; tente novamente em instantes.')}try{applyPermissions()}catch(e){console.error(e)}try{goHome()}catch(e){console.error(e)}};
+
+async function retrySupabase(label,fn,attempts=4){
+ let lastError=null;
+ for(let i=1;i<=attempts;i++){
+  try{
+   const result=await fn();
+   if(result?.error)throw result.error;
+   return result;
+  }catch(e){
+   lastError=e;
+   console.warn(label+' — tentativa '+i+'/'+attempts,e);
+   if(i<attempts)await new Promise(r=>setTimeout(r,[0,450,900,1600][i]||1600));
+  }
+ }
+ throw lastError||new Error(label+' indisponível temporariamente.');
+}
+async function loadProfile(user){
+ const {data}=await retrySupabase('Carregar perfil',()=>ftDb().from('profiles').select('id,nome_completo,email,role,ativo').eq('id',user.id).single());
+ if(!data)throw new Error('Perfil do Controle de FT não encontrado.');
+ currentUser={name:data.nome_completo,role:roleLabel[data.role]||data.role,dbRole:data.role,login:data.email,units:[],active:data.ativo?'Ativo':'Inativo',authId:user.id};
+ if(!data.ativo)throw new Error('Usuário inativo.');
+ if(data.role==='supervisor'){
+  const {data:su}=await retrySupabase('Carregar unidades do supervisor',()=>ftDb().from('supervisor_unidades').select('unidade_id').eq('supervisor_id',user.id));
+  currentUser.unitIds=(su||[]).map(x=>x.unidade_id);
+ }
+}
+async function loadCloud(){
+ const [ur,rr,vr,pr,fr]=await Promise.all([
+  retrySupabase('Carregar unidades',()=>ftDb().from('unidades').select('*').order('nome')),
+  retrySupabase('Carregar motivos',()=>ftDb().from('motivos').select('*').order('nome')),
+  retrySupabase('Carregar valores',()=>ftDb().from('valores_ft').select('*').order('descricao')),
+  retrySupabase('Carregar perfis',()=>ftDb().from('profiles').select('id,nome_completo,email,role,ativo')),
+  retrySupabase('Carregar FTs',()=>ftDb().from('fts').select('*').order('data_lancamento',{ascending:false}))
+ ]);
+ const us=ur.data||[],rs=rr.data||[],vs=vr.data||[],ps=pr.data||[],rows=fr.data||[];
+ unitMap=Object.fromEntries(us.map(x=>[x.id,x]));
+ reasonMap=Object.fromEntries(rs.map(x=>[x.id,x]));
+ unitRecords=us.map(x=>({id:x.id,name:x.nome,active:x.ativo?'Ativo':'Inativo'}));
+ reasonRecords=rs.map(x=>({id:x.id,name:x.nome,active:x.ativo?'Ativo':'Inativo',requiresAbsent:x.exige_faltante}));
+ ftValues=vs.map(x=>({id:x.id,name:x.descricao,amount:Number(x.valor),active:x.ativo?'Ativo':'Inativo',reason_id:x.motivo_id}));
+ users=ps.map(x=>({id:x.id,name:x.nome_completo,login:x.email,role:roleLabel[x.role]||x.role,active:x.ativo?'Ativo':'Inativo',units:[]}));
+ const pm=Object.fromEntries(ps.map(x=>[x.id,x]));
+ fts=rows.map(x=>({dbid:x.id,id:x.protocolo,year:x.ano,date:x.data_ft,supervisor:pm[x.supervisor_id]?.nome_completo||'—',supervisor_id:x.supervisor_id,unit:unitMap[x.unidade_id]?.nome||'—',unit_id:x.unidade_id,reason:reasonMap[x.motivo_id]?.nome||'—',reason_id:x.motivo_id,absent:x.nome_faltante||'',worker:x.nome_executor,cpf:x.cpf_executor,pixtype:x.tipo_pix,pix:x.chave_pix,value:Number(x.valor),status:statusLabel[x.status]||x.status,rawStatus:x.status,paid:x.pago_em?new Date(x.pago_em).toLocaleDateString('pt-BR'):'',paidAtRaw:x.pago_em||'',paidAt:x.pago_em?new Date(x.pago_em).toLocaleString('pt-BR'):'',financeiro_id:x.financeiro_id||'',financeiro:pm[x.financeiro_id]?.nome_completo||(x.financeiro_id?'Financeiro':'—'),supervisorObs:x.observacao_supervisor||'',dpRhObs:x.dp_rh_obs||'',dpRhAtRaw:x.dp_rh_em||'',createdAtRaw:x.data_lancamento||x.created_at||'',updatedAtRaw:x.updated_at||''}));
+ if(currentUser?.dbRole==='supervisor')currentUser.units=unitRecords.filter(x=>currentUser.unitIds?.includes(x.id)).map(x=>x.name);
+ refreshSystemLists();renderUsers();renderRegistries();render();
+}
+const oldDoLogin=doLogin;
+doLogin=async function(){
+ let login=loginUser.value.trim().toLowerCase(),pass=loginPass.value;
+ if(!login||!pass){loginError.textContent='Informe e-mail e senha.';loginError.style.display='block';return}
+ loginError.style.display='none';
+ const {data,error}=await sb.auth.signInWithPassword({email:login,password:pass});
+ if(error||!data.user){loginError.textContent='Login ou senha inválidos.';loginError.style.display='block';return}
+ try{await loadProfile(data.user)}
+ catch(e){loginError.textContent=e.message||'Não foi possível carregar seu perfil. Tente novamente.';loginError.style.display='block';return}
+ loginScreen.style.display='none';logoutBtn.classList.remove('hidden');rolePill.classList.remove('hidden');
+ try{await loadCloud()}
+ catch(e){
+  console.error('Falha temporária ao carregar dados:',e);
+  if(typeof showActionSuccess==='function')showActionSuccess('Acesso realizado. Sincronizando dados...');
+  setTimeout(()=>{loadCloud().catch(err=>console.error('Nova tentativa de sincronização:',err))},1800);
+ }
+ try{applyPermissions()}catch(e){console.error(e)}
+ try{goHome()}catch(e){console.error(e)}
+};
 function getLaunchFiles(){return [...document.querySelectorAll('#launch input[type=file]:not(:disabled)')].map(x=>x.files?.[0]);}
 saveFT=async function(btn){
  if(window.__ftSending)return;
@@ -309,7 +371,7 @@ saveUser=async function(){
  finally{if(btn){btn.disabled=false;btn.textContent=btn.dataset.originalText||'Cadastrar usuário'}}
 };
 toggleUser=function(){alert('A alteração de usuários será feita pelo módulo seguro de Administração.')};
-(async()=>{const {data}=await sb.auth.getSession();const u=data.session?.user;if(u){try{await loadProfile(u);loginScreen.style.display='none';logoutBtn.classList.remove('hidden');rolePill.classList.remove('hidden')}catch(e){console.error('Perfil:',e);return}try{await loadCloud()}catch(e){console.error('Dados:',e)}try{applyPermissions()}catch(e){console.error(e)}try{goHome()}catch(e){console.error(e)}}})();
+(async()=>{const {data}=await sb.auth.getSession();const u=data.session?.user;if(u){try{await loadProfile(u);loginScreen.style.display='none';logoutBtn.classList.remove('hidden');rolePill.classList.remove('hidden')}catch(e){console.error('Perfil:',e);return}try{await loadCloud()}catch(e){console.error('Dados:',e);setTimeout(()=>{loadCloud().catch(err=>console.error('Nova tentativa de sincronização:',err))},1800)}try{applyPermissions()}catch(e){console.error(e)}try{goHome()}catch(e){console.error(e)}}})();
 
 function showActionSuccess(message){
  let n=document.getElementById('actionSuccessToast');
