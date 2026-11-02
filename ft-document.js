@@ -29,10 +29,11 @@
   const files=document.querySelector('#launch .files');if(!files)return;
   source=document.getElementById('documentCombinedFile')||files.querySelectorAll('input[type=file]')[4];if(!source)return;
   source.id='documentCombinedFile';source.hidden=true;source.setAttribute('aria-hidden','true');
-  const label=source.closest('.field')?.querySelector('label');if(label)label.textContent='🪪 Documento com foto — frente e verso';
+  const legacyField=source.closest('.field');if(legacyField){legacyField.hidden=true;legacyField.style.display='none';}
   if(document.getElementById('documentSides'))return;
-  const box=document.createElement('div');box.id='documentSides';box.className='row';
-  box.innerHTML='<div class="field"><label for="documentFront">🪪 Frente do documento</label><input id="documentFront" type="file" accept="image/*"><span class="smallmuted">Selecione a foto da frente.</span></div><div class="field"><label for="documentBack">🪪 Verso do documento</label><input id="documentBack" type="file" accept="image/*"><span class="smallmuted">Selecione a foto do verso.</span></div><p class="smallmuted" style="grid-column:1/-1">As duas fotos ficarão vinculadas à mesma FT. Em correções, deixe os dois campos vazios para manter o documento já enviado.</p>';
+  const box=document.createElement('div');box.id='documentSides';box.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px;margin-top:20px';
+  const docIcon='<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:inline-block;vertical-align:middle;flex-shrink:0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg>';
+  box.innerHTML='<div role="heading" aria-level="3" style="grid-column:1/-1;display:flex;align-items:center;gap:8px;font-weight:700">'+docIcon+' Documento com foto — frente e verso</div><div class="field"><label for="documentFront" style="display:flex;align-items:center;gap:8px">'+docIcon+' Frente do documento</label><input id="documentFront" type="file" accept="image/*"><span class="smallmuted">Selecione a foto da frente.</span></div><div class="field"><label for="documentBack" style="display:flex;align-items:center;gap:8px">'+docIcon+' Verso do documento</label><input id="documentBack" type="file" accept="image/*"><span class="smallmuted">Selecione a foto do verso.</span></div><p class="smallmuted" style="grid-column:1/-1">As duas fotos ficarão vinculadas à mesma FT. Em correções, deixe os dois campos vazios para manter o documento já enviado.</p>';
   files.insertAdjacentElement('afterend',box);front=box.querySelector('#documentFront');back=box.querySelector('#documentBack');
  }
  const save=root.saveFT;
