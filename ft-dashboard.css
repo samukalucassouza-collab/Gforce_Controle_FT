@@ -1,0 +1,18 @@
+#home.ft-has-indicators > .flowbar,#home.ft-has-indicators > .dashgrid{display:none!important}
+.ft-indicators[hidden],.ft-indicators [hidden]{display:none!important}
+.ft-indicators{margin-top:24px;padding:24px!important;color:#17324d;background:#fff}
+.ft-panel-heading,.ft-ranking-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.ft-panel-heading h2{font-size:24px;margin:0}.ft-panel-heading p{margin:6px 0;color:#52677e}
+.ft-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:22px 0 12px}
+.ft-filters label,.ft-ranking-head label{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:600;min-width:0}
+.ft-filters input,.ft-filters select,.ft-ranking-head select{width:100%;min-width:0;box-sizing:border-box;min-height:44px;font-size:15px;border:1px solid #c9d5e0;border-radius:9px;padding:9px;color:#17324d;background:#fff}
+.ft-kpi-context,.ft-kpi-note{font-size:14px;line-height:1.55;color:#52677e}.ft-kpi-note{margin-top:16px}
+.ft-kpi-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:18px 0 28px}
+.ft-kpi-card{min-width:0;padding:17px 14px;border:1px solid #d7e1ec;border-top:3px solid #3977ae;border-radius:12px;background:#f7faff}
+.ft-kpi-card span{display:block;font-size:14px;line-height:1.4;min-height:40px;color:#47617b}
+.ft-kpi-card strong{display:block;font-size:clamp(18px,2vw,25px);line-height:1.4;overflow-wrap:anywhere;font-variant-numeric:tabular-nums;color:#163b63}
+.ft-ranking-head h3{font-size:20px}.ft-ranking-scroll{overflow-x:auto;margin-top:14px}.ft-ranking-scroll table{width:100%;border-collapse:collapse;font-size:15px}.ft-ranking-scroll th,.ft-ranking-scroll td{text-align:left;padding:12px;border-bottom:1px solid #e0e8f0;white-space:normal;overflow-wrap:anywhere}.ft-ranking-scroll th{background:#eef4fa}.ft-ranking-scroll td:last-child{font-variant-numeric:tabular-nums;white-space:nowrap}
+.ft-filter-error{padding:12px;color:#8b1c1c;background:#fff0f0;border-radius:8px}
+@media(max-width:1000px){.ft-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.ft-indicators{padding:16px!important}.ft-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.ft-kpi-card{padding:13px 10px}.ft-panel-heading h2{font-size:22px}.ft-ranking-scroll th,.ft-ranking-scroll td{padding:9px 6px;font-size:13px}}
+@media(max-width:360px){.ft-filters{grid-template-columns:minmax(0,1fr)}}

@@ -1,0 +1,6 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');require('../ft-document.js');
+const {validatePair}=globalThis.FTDocument;const image={type:'image/jpeg'};
+test('nova FT exige frente e verso',()=>{assert.throws(()=>validatePair(null,null,false),/frente e o verso/);assert.throws(()=>validatePair(image,null,false),/duas fotos/);assert.equal(validatePair(image,image,false),true)});
+test('correção mantém documento antigo se nenhuma foto nova for selecionada',()=>{assert.equal(validatePair(null,null,true),false);assert.throws(()=>validatePair(null,image,true),/duas fotos/)});
+test('rejeita arquivo que não é foto',()=>assert.throws(()=>validatePair(image,{type:'application/pdf'},false),/imagem/));
+test('composição inclui as duas faces e libera as imagens',async()=>{let closed=0,drawn=0;const text=[];globalThis.createImageBitmap=async()=>({width:1000,height:600,close(){closed++}});globalThis.document={createElement(){return {getContext(){return {fillRect(){},fillText(t){text.push(t)},drawImage(){drawn++}}},toBlob(cb){cb(new Blob(['test'],{type:'image/jpeg'}))}}}};const file=await globalThis.FTDocument.compose(image,image);assert.equal(drawn,2);assert.equal(closed,2);assert.match(file.name,/^documento-frente-verso-/);assert.match(text[0],/FRENTE/);assert.match(text[1],/VERSO/);delete globalThis.document;});
