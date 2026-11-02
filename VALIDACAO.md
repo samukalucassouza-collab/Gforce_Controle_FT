@@ -8,6 +8,8 @@ Painel consultivo com filtros por data da FT, supervisor, unidade, motivo e stat
 
 Documento com foto: campos separados para frente e verso. Ambas as imagens são preparadas em uma única imagem identificada com as duas faces, usando o tipo de evidência já existente. Assim, a galeria atual do DP exibe ambas sem exigir alteração de tabelas ou novos tipos. Ao corrigir FT existente, não escolher nenhuma nova imagem mantém o documento anterior; escolher uma face exige também a outra. Nenhum documento existente foi migrado ou apagado por esta implementação.
 
+Impressão dos KPIs: botão único abre a impressão do navegador com os 10 indicadores, ranking, filtros e data de emissão, sem incluir formulários ou anexos. O usuário pode escolher Salvar como PDF. Conteúdo do relatório verificado na demonstração; a paginação final depende do navegador e da quantidade de supervisores.
+
 ## Verificação concluída
 
 - `node --test tests/*.test.cjs`: 10 testes passaram.
@@ -22,3 +24,5 @@ Documento com foto: campos separados para frente e verso. Ambas as imagens são 
 - Conferência da lista de indicadores proposta e comparação da base com a versão realmente publicada.
 
 Alterações destinadas à branch feature/painel-indicadores-validacao no GitHub, sem merge na main e sem publicação no Netlify/ChatGPT Sites. Nenhuma escrita foi executada no banco de produção. Os testes de composição de imagem foram simulados; o envio autenticado não foi realizado.
+
+Gráficos: distribuição por status, quantidade por motivo e evolução mensal dos valores lançados. Seguem o mesmo escopo, filtros e exclusões dos indicadores. Incluídos no relatório único de impressão. Testes de agregação e conteúdo do relatório concluídos em demonstração com dados fictícios.
