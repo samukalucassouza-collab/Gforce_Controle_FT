@@ -525,6 +525,37 @@ window.exportKpisFullPdf=async function(){
  const content=children.slice(startIndex).map((el,i)=>{
    const clone=el.cloneNode(true);
    if(i===0)clone.classList.add('pdf-start-box');
+
+   // Preserva os valores atualmente selecionados nos filtros.
+   const srcControls=[...el.querySelectorAll('input,select,textarea')];
+   const dstControls=[...clone.querySelectorAll('input,select,textarea')];
+   srcControls.forEach((src,idx)=>{
+     const dst=dstControls[idx];if(!dst)return;
+     if(src.tagName==='SELECT'){
+       [...dst.options].forEach((opt,j)=>{opt.selected=!!src.options[j]?.selected});
+     }else if(src.tagName==='TEXTAREA'){
+       dst.textContent=src.value||'';
+     }else{
+       dst.setAttribute('value',src.value||'');
+       if(src.checked)dst.setAttribute('checked','checked');else dst.removeAttribute('checked');
+     }
+   });
+
+   // O navegador pode falhar ao imprimir a curva em SVG; rasteriza somente a curva.
+   const srcTrends=[...el.querySelectorAll('svg.ft-trend')];
+   const dstTrends=[...clone.querySelectorAll('svg.ft-trend')];
+   srcTrends.forEach((svg,idx)=>{
+     const target=dstTrends[idx];if(!target)return;
+     try{
+       const xml=new XMLSerializer().serializeToString(svg);
+       const img=document.createElement('img');
+       img.className='ft-trend ft-trend-print';
+       img.alt=svg.getAttribute('aria-label')||'Evolução mensal dos valores lançados';
+       img.src='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(xml)));
+       target.replaceWith(img);
+     }catch(_){}
+   });
+
    return clone.outerHTML;
  }).join('');
 
@@ -570,7 +601,7 @@ window.exportKpisFullPdf=async function(){
   .ft-chart-card{padding:10px!important;margin:0!important;break-inside:avoid!important;page-break-inside:avoid!important}
   .ft-chart-wide{grid-column:1/-1!important}
   .ft-donut-layout>svg{width:95px!important;max-height:95px!important}
-  .ft-trend{width:100%!important;max-height:165px!important}
+  .ft-trend,.ft-trend-print{display:block!important;width:100%!important;max-height:165px!important;object-fit:contain!important}
   .ft-month-values{font-size:8px!important;gap:4px 8px!important}
   .ft-chart-legend>div,.ft-chart-bar-row>div:first-child{font-size:8px!important;margin:5px 0!important}
   .ft-chart-card h3{font-size:11px!important;margin:0 0 6px!important}
