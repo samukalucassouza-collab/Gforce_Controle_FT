@@ -71,18 +71,30 @@
     byId('ftKpiContext').textContent=invalid?'Ajuste as datas para consultar.':`${m.total} FT(s) consideradas · ${selected.length-m.total} rascunho(s) ou recusada(s) fora dos totais · ${user.dbRole==='supervisor'?'Somente suas FTs':'Registros disponíveis para seu acesso'}`;
     const metrics=[['FTs lançadas',m.total],['Aguardando DP',m.validation],['Em correção',m.correction],['Aguardando pagamento',m.awaiting],['FTs pagas',m.paid],['Valor lançado',money(m.value)],['Valor pago',money(m.paidValue)],['Valor a pagar',money(m.awaitingValue)],['Taxa de pagamento',m.paidRate==null?'—':m.paidRate.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%'],['Valor médio por FT',money(m.average)]];
     byId('ftKpiCards').innerHTML=metrics.map(([label,value])=>`<article class="ft-kpi-card"><span>${label}</span><strong>${invalid?'—':esc(value)}</strong></article>`).join('');
-    byId('ftKpiCharts').innerHTML=renderCharts(selected);
+    // O gráfico mantém três meses de histórico independentemente do intervalo dos cartões.
+    // Outros filtros (supervisor, unidade, motivo e status) continuam valendo.
+    const anchor=filters.to||new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'});
+    const anchorMonth=/^\d{4}-\d{2}/.test(anchor)?anchor.slice(0,7):new Date().toISOString().slice(0,7);
+    const [anchorYear,anchorNumber]=anchorMonth.split('-').map(Number);
+    const startMonth=new Date(Date.UTC(anchorYear,anchorNumber-3,1)).toISOString().slice(0,7);
+    const trendRows=invalid?[]:filter(rows,{...filters,from:startMonth+'-01',to:anchorMonth+'-31'});
+    byId('ftKpiCharts').innerHTML=renderCharts(selected,trendRows,anchorMonth);
     const ranked=ranking(selected,byId('ftRankSort').value);
     byId('ftKpiRanking').innerHTML=ranked.map((row,index)=>`<tr><td>${index+1}º</td><td>${esc(row.name)}</td><td>${row.count}</td><td>${money(row.value)}</td></tr>`).join('')||'<tr><td colspan="4">Nenhuma FT encontrada para os filtros.</td></tr>';
   }
-  function renderCharts(rows) {
+  function renderCharts(rows,trendRows=rows,anchorMonth) {
     const data=chartData(rows),colors={paga:'#07956b',autorizada:'#347ad5',aguardando_pagamento:'#6c64db',aguardando_dp_rh:'#d18a17',solicitar_correcao:'#d25868'},empty='<p class="ft-chart-empty">Sem FTs para os filtros selecionados.</p>';
     const total=data.statuses.reduce((sum,[,n])=>sum+n,0);let offset=0;
     const arcs=data.statuses.map(([status,count])=>{const length=count/total*100;const svg='<circle cx="65" cy="65" r="48" fill="none" stroke="'+(colors[status]||'#76889d')+'" stroke-width="15" pathLength="100" stroke-dasharray="'+length+' '+(100-length)+'" stroke-dashoffset="'+(-offset)+'" transform="rotate(-90 65 65)"><title>'+esc(labels[status]||status)+': '+count+'</title></circle>';offset+=length;return svg}).join('');
     const donut=total?'<div class="ft-donut-layout"><svg viewBox="0 0 130 130" role="img" aria-label="Distribuição das '+total+' FTs por status">'+arcs+'<text x="65" y="63" text-anchor="middle" class="ft-donut-total">'+total+'</text><text x="65" y="82" text-anchor="middle" class="ft-donut-caption">FTs</text></svg><div class="ft-chart-legend">'+data.statuses.map(([status,count])=>'<div><i style="background:'+(colors[status]||'#76889d')+'"></i><span>'+esc(labels[status]||status)+'</span><b>'+count+'</b></div>').join('')+'</div></div>':empty;
     const max=Math.max(1,...data.reasons.map(([,n])=>n));
     const reasons=data.reasons.length?'<div class="ft-reason-chart">'+data.reasons.map(([name,count])=>'<div class="ft-chart-bar-row"><div><span>'+esc(name)+'</span><b>'+count+'</b></div><div class="ft-chart-track"><div style="width:'+count/max*100+'%"></div></div></div>').join('')+'</div>':empty;
-    const months=data.months;
+    const trendData=chartData(trendRows);
+    const months=anchorMonth?Array.from({length:3},(_,i)=>{
+      const [year,month]=anchorMonth.split('-').map(Number);
+      const key=new Date(Date.UTC(year,month-3+i,1)).toISOString().slice(0,7);
+      return [key,new Map(trendData.months).get(key)||0];
+    }):trendData.months;
     let trend=empty;
     const label=month=>month.slice(5)+'/'+month.slice(0,4);
     if(months.length){
@@ -93,7 +105,7 @@
       const area=points.length>1?points[0][0]+','+bottom+' '+poly+' '+points[points.length-1][0]+','+bottom:'';
       trend='<svg class="ft-trend" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="Evolução mensal dos valores lançados"><line x1="'+left+'" y1="'+bottom+'" x2="'+right+'" y2="'+bottom+'" stroke="#d9e4ee"/>'+(area?'<polygon points="'+area+'" fill="#e4effb"/>':'')+(points.length>1?'<polyline points="'+poly+'" fill="none" stroke="#347ad5" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>':'')+points.map(([x,y],i)=>'<circle cx="'+x+'" cy="'+y+'" r="5" fill="#347ad5"><title>'+label(months[i][0])+': '+money(months[i][1])+'</title></circle>').join('')+'<text x="'+left+'" y="207" class="ft-axis">'+label(months[0][0])+'</text><text x="'+right+'" y="207" text-anchor="end" class="ft-axis">'+label(months[months.length-1][0])+'</text></svg><div class="ft-month-values">'+months.map(([m,v])=>'<span>'+label(m)+' <b>'+money(v)+'</b></span>').join('')+'</div>';
     }
-    return '<article class="ft-chart-card"><h3>Status das FTs</h3>'+donut+'</article><article class="ft-chart-card"><h3>FTs por motivo</h3>'+reasons+'</article><article class="ft-chart-card ft-chart-wide"><h3>Evolução mensal dos valores lançados</h3><p class="ft-chart-subtitle">Soma por mês da data da FT · '+months.length+' mês(es) com lançamentos</p>'+trend+'</article>';
+    return '<article class="ft-chart-card"><h3>Status das FTs</h3>'+donut+'</article><article class="ft-chart-card"><h3>FTs por motivo</h3>'+reasons+'</article><article class="ft-chart-card ft-chart-wide"><h3>Evolução mensal dos valores lançados</h3><p class="ft-chart-subtitle">Soma por mês da data da FT · últimos 3 meses do período de referência</p>'+trend+'</article>';
   }
   root.renderFTDashboard=renderPanel;
   for (const name of ['render','applyPermissions','goHome','logout']) {
