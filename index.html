@@ -505,6 +505,13 @@ function titleCaseGF(t){
 }
 function applyTitleStyle(){document.querySelectorAll('h1,h2,h3,.card b,.section-title').forEach(el=>{if(el.dataset.keepcase)return;el.textContent=titleCaseGF(el.textContent)});}
 window.exportKpisFullPdf=async function(){
+ try{
+  await loadCloud();
+  if(typeof renderFTDashboard==='function')renderFTDashboard();
+ }catch(e){
+  alert('Não foi possível atualizar os dados antes do PDF. Tente novamente para evitar relatório com dados antigos.');
+  return;
+ }
  const ranking=document.getElementById('unitRanking');
  if(!ranking)return alert('Bloco Lojas / Unidades Com Mais FTs não localizado.');
  const startBox=ranking.closest('.dashbox');
