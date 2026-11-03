@@ -31,22 +31,9 @@
   }
   function chartData(rows) {
     const active=rows.filter(row=>!['rascunho','recusada'].includes(statusOf(row)));
-    const statuses=new Map(),reasons=new Map(),months=new Map(),days=new Map();
-    for(const row of active){
-      const status=statusOf(row)||'outro';statuses.set(status,(statuses.get(status)||0)+1);
-      const reason=row.reason||'Sem motivo';reasons.set(reason,(reasons.get(reason)||0)+1);
-      const date=String(row.date||'').slice(0,10);
-      const month=date.slice(0,7);
-      const cents=Math.round(amount(row)*100);
-      if(/^\d{4}-\d{2}$/.test(month))months.set(month,(months.get(month)||0)+cents);
-      if(/^\d{4}-\d{2}-\d{2}$/.test(date))days.set(date,(days.get(date)||0)+cents);
-    }
-    return {
-      statuses:[...statuses],
-      reasons:[...reasons].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'pt-BR')),
-      months:[...months].sort((a,b)=>a[0].localeCompare(b[0])).map(([month,cents])=>[month,cents/100]),
-      days:[...days].sort((a,b)=>a[0].localeCompare(b[0])).map(([day,cents])=>[day,cents/100])
-    };
+    const statuses=new Map(),reasons=new Map(),months=new Map();
+    for(const row of active){const status=statusOf(row)||'outro';statuses.set(status,(statuses.get(status)||0)+1);const reason=row.reason||'Sem motivo';reasons.set(reason,(reasons.get(reason)||0)+1);const month=String(row.date||'').slice(0,7);if(/^\d{4}-\d{2}$/.test(month))months.set(month,(months.get(month)||0)+Math.round(amount(row)*100));}
+    return {statuses:[...statuses],reasons:[...reasons].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'pt-BR')),months:[...months].sort((a,b)=>a[0].localeCompare(b[0])).map(([month,cents])=>[month,cents/100])};
   }
   root.FTDashboard = {scope,filter,summarize,ranking,statusOf,chartData};
   if (typeof document === 'undefined') return;
