@@ -522,7 +522,32 @@ window.exportKpisFullPdf=async function(){
  const startIndex=children.indexOf(startBox);
  if(startIndex<0)return alert('Não foi possível localizar o início do relatório.');
 
- const content=children.slice(startIndex).map((el,i)=>{
+ const svgTrendToPng=async(svg)=>{
+   const viewBox=(svg.getAttribute('viewBox')||'0 0 700 220').trim().split(/\s+/).map(Number);
+   const width=Math.max(700,Math.round((viewBox[2]||700)*2));
+   const height=Math.max(220,Math.round((viewBox[3]||220)*2));
+   let xml=new XMLSerializer().serializeToString(svg);
+   if(!/xmlns=/.test(xml))xml=xml.replace('<svg','<svg xmlns="http://www.w3.org/2000/svg"');
+   const blob=new Blob([xml],{type:'image/svg+xml;charset=utf-8'});
+   const url=URL.createObjectURL(blob);
+   try{
+     const image=await new Promise((resolve,reject)=>{
+       const img=new Image();
+       img.onload=()=>resolve(img);
+       img.onerror=reject;
+       img.src=url;
+     });
+     const canvas=document.createElement('canvas');
+     canvas.width=width;canvas.height=height;
+     const ctx=canvas.getContext('2d');
+     if(!ctx)throw new Error('Canvas indisponível para o gráfico.');
+     ctx.fillStyle='#ffffff';ctx.fillRect(0,0,width,height);
+     ctx.drawImage(image,0,0,width,height);
+     return canvas.toDataURL('image/png');
+   }finally{URL.revokeObjectURL(url)}
+ };
+
+ const contentParts=await Promise.all(children.slice(startIndex).map(async(el,i)=>{
    const clone=el.cloneNode(true);
    if(i===0)clone.classList.add('pdf-start-box');
 
@@ -541,23 +566,24 @@ window.exportKpisFullPdf=async function(){
      }
    });
 
-   // O navegador pode falhar ao imprimir a curva em SVG; rasteriza somente a curva.
+   // Converte a curva para PNG real antes da impressão.
    const srcTrends=[...el.querySelectorAll('svg.ft-trend')];
    const dstTrends=[...clone.querySelectorAll('svg.ft-trend')];
-   srcTrends.forEach((svg,idx)=>{
-     const target=dstTrends[idx];if(!target)return;
+   for(let idx=0;idx<srcTrends.length;idx++){
+     const target=dstTrends[idx];if(!target)continue;
      try{
-       const xml=new XMLSerializer().serializeToString(svg);
+       const png=await svgTrendToPng(srcTrends[idx]);
        const img=document.createElement('img');
        img.className='ft-trend ft-trend-print';
-       img.alt=svg.getAttribute('aria-label')||'Evolução mensal dos valores lançados';
-       img.src='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(xml)));
+       img.alt=srcTrends[idx].getAttribute('aria-label')||'Evolução mensal dos valores lançados';
+       img.src=png;
        target.replaceWith(img);
-     }catch(_){}
-   });
+     }catch(e){console.error('Falha ao preparar curva para PDF:',e)}
+   }
 
    return clone.outerHTML;
- }).join('');
+ }));
+ const content=contentParts.join('');
 
  const w=window.open('','_blank');
  if(!w)return alert('O navegador bloqueou a janela do PDF. Libere pop-ups para este site e tente novamente.');
@@ -623,8 +649,15 @@ window.exportKpisFullPdf=async function(){
  ${content}
  </div></body></html>`);
  w.document.close();
- const run=()=>{try{w.focus();w.print()}catch(e){console.error('PDF KPIs:',e)}};
- if(w.document.readyState==='complete')setTimeout(run,700);else w.onload=()=>setTimeout(run,700);
+ const run=async()=>{
+  try{
+   const images=[...w.document.images];
+   await Promise.all(images.map(img=>img.complete?Promise.resolve():new Promise(resolve=>{img.onload=resolve;img.onerror=resolve})));
+   if(w.document.fonts?.ready)try{await w.document.fonts.ready}catch(_){}
+   w.focus();w.print();
+  }catch(e){console.error('PDF KPIs:',e)}
+ };
+ if(w.document.readyState==='complete')setTimeout(run,250);else w.onload=()=>setTimeout(run,250);
 };
 function setupStaticUI(){
  const logo=document.querySelector('.brand-logo');if(logo){logo.style.objectFit='contain';logo.style.objectPosition='center'}
