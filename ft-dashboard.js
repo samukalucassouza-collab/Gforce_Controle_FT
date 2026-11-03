@@ -95,22 +95,18 @@
     const donut=total?'<div class="ft-donut-layout"><svg viewBox="0 0 130 130" role="img" aria-label="Distribuição das '+total+' FTs por status">'+arcs+'<text x="65" y="63" text-anchor="middle" class="ft-donut-total">'+total+'</text><text x="65" y="82" text-anchor="middle" class="ft-donut-caption">FTs</text></svg><div class="ft-chart-legend">'+data.statuses.map(([status,count])=>'<div><i style="background:'+(colors[status]||'#76889d')+'"></i><span>'+esc(labels[status]||status)+'</span><b>'+count+'</b></div>').join('')+'</div></div>':empty;
     const max=Math.max(1,...data.reasons.map(([,n])=>n));
     const reasons=data.reasons.length?'<div class="ft-reason-chart">'+data.reasons.map(([name,count])=>'<div class="ft-chart-bar-row"><div><span>'+esc(name)+'</span><b>'+count+'</b></div><div class="ft-chart-track"><div style="width:'+count/max*100+'%"></div></div></div>').join('')+'</div>':empty;
-    const monthly=data.months;
-    const useDaily=monthly.length===1&&data.days.length>1;
-    const series=useDaily?data.days:monthly;
+    const months=data.months;
     let trend=empty;
-    const label=value=>useDaily?(value.slice(8)+'/'+value.slice(5,7)):(value.slice(5)+'/'+value.slice(0,4));
-    if(series.length){
-      const w=700,h=220,left=24,right=676,top=18,bottom=176,peak=Math.max(1,...series.map(([,v])=>v));
-      const point=(i,v)=>[series.length===1?w/2:left+i/(series.length-1)*(right-left),bottom-v/peak*(bottom-top)];
-      const points=series.map(([,v],i)=>point(i,v));
+    const label=month=>month.slice(5)+'/'+month.slice(0,4);
+    if(months.length){
+      const w=700,h=220,left=24,right=676,top=18,bottom=176,peak=Math.max(1,...months.map(([,v])=>v));
+      const point=(i,v)=>[months.length===1?w/2:left+i/(months.length-1)*(right-left),bottom-v/peak*(bottom-top)];
+      const points=months.map(([,v],i)=>point(i,v));
       const poly=points.map(p=>p.join(',')).join(' ');
       const area=points.length>1?points[0][0]+','+bottom+' '+poly+' '+points[points.length-1][0]+','+bottom:'';
-      trend='<svg class="ft-trend" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+(useDaily?'Evolução diária':'Evolução mensal')+' dos valores lançados"><line x1="'+left+'" y1="'+bottom+'" x2="'+right+'" y2="'+bottom+'" stroke="#d9e4ee"/>'+(area?'<polygon points="'+area+'" fill="#e4effb"/>':'')+(points.length>1?'<polyline points="'+poly+'" fill="none" stroke="#347ad5" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>':'')+points.map(([x,y],i)=>'<circle cx="'+x+'" cy="'+y+'" r="5" fill="#347ad5"><title>'+label(series[i][0])+': '+money(series[i][1])+'</title></circle>').join('')+'<text x="'+left+'" y="207" class="ft-axis">'+label(series[0][0])+'</text><text x="'+right+'" y="207" text-anchor="end" class="ft-axis">'+label(series[series.length-1][0])+'</text></svg><div class="ft-month-values">'+series.map(([m,v])=>'<span>'+label(m)+' <b>'+money(v)+'</b></span>').join('')+'</div>';
+      trend='<svg class="ft-trend" viewBox="0 0 '+w+' '+h+'" role="img" aria-label="Evolução mensal dos valores lançados"><line x1="'+left+'" y1="'+bottom+'" x2="'+right+'" y2="'+bottom+'" stroke="#d9e4ee"/>'+(area?'<polygon points="'+area+'" fill="#e4effb"/>':'')+(points.length>1?'<polyline points="'+poly+'" fill="none" stroke="#347ad5" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>':'')+points.map(([x,y],i)=>'<circle cx="'+x+'" cy="'+y+'" r="5" fill="#347ad5"><title>'+label(months[i][0])+': '+money(months[i][1])+'</title></circle>').join('')+'<text x="'+left+'" y="207" class="ft-axis">'+label(months[0][0])+'</text><text x="'+right+'" y="207" text-anchor="end" class="ft-axis">'+label(months[months.length-1][0])+'</text></svg><div class="ft-month-values">'+months.map(([m,v])=>'<span>'+label(m)+' <b>'+money(v)+'</b></span>').join('')+'</div>';
     }
-    const trendTitle=useDaily?'Evolução diária dos valores lançados':'Evolução mensal dos valores lançados';
-    const trendSubtitle=useDaily?'Há apenas 1 mês no período. A curva mostra a soma por dia da data da FT.':'Soma por mês da data da FT · '+monthly.length+' mês(es) com lançamentos';
-    return '<article class="ft-chart-card"><h3>Status das FTs</h3>'+donut+'</article><article class="ft-chart-card"><h3>FTs por motivo</h3>'+reasons+'</article><article class="ft-chart-card ft-chart-wide"><h3>'+trendTitle+'</h3><p class="ft-chart-subtitle">'+trendSubtitle+'</p>'+trend+'</article>';
+    return '<article class="ft-chart-card"><h3>Status das FTs</h3>'+donut+'</article><article class="ft-chart-card"><h3>FTs por motivo</h3>'+reasons+'</article><article class="ft-chart-card ft-chart-wide"><h3>Evolução mensal dos valores lançados</h3><p class="ft-chart-subtitle">Soma por mês da data da FT · '+months.length+' mês(es) com lançamentos</p>'+trend+'</article>';
   }
   root.renderFTDashboard=renderPanel;
   for (const name of ['render','applyPermissions','goHome','logout']) {
