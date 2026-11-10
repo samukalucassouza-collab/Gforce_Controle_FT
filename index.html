@@ -189,7 +189,7 @@ refreshSystemLists();renderUsers();renderRegistries();render();
 /* Controle FT — integração Supabase */
 const ftDb=()=>sb;
 const roleLabel={administrador:'Administrador',supervisor:'Supervisor',dp_rh:'DP',financeiro:'Financeiro'};
-const statusLabel={rascunho:'Rascunho',aguardando_dp_rh:'Aguardando DP',solicitar_correcao:'Correção solicitada',recusada:'Recusada',autorizada:'Autorizada',aguardando_pagamento:'Aguardando Pagamento',paga:'Paga'};
+const statusLabel={rascunho:'Rascunho',aguardando_dp_rh:'Aguardando DP',solicitar_correcao:'Correção solicitada',recusada:'Recusada',autorizada:'Autorizada',aguardando_pagamento:'Aguardando Pagamento',paga:'Paga',devolvida_pix:'Devolvida: PIX incorreto'};
 let unitMap={},reasonMap={};
 
 async function retrySupabase(label,fn,attempts=4){
