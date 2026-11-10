@@ -58,6 +58,7 @@
    cell.appendChild(note);
   });
  }
+ window.pixDecorateSupervisor=decorateSupervisor;
  function wrap(name,decorate){
   const old=window[name];if(typeof old!=='function'||old.__pixWrapped)return;
   const wrapped=function(...args){const out=old.apply(this,args);decorate();return out;};
