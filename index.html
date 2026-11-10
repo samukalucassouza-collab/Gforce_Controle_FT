@@ -233,7 +233,7 @@ async function loadCloud(){
  ftValues=vs.map(x=>({id:x.id,name:x.descricao,amount:Number(x.valor),active:x.ativo?'Ativo':'Inativo',reason_id:x.motivo_id}));
  users=ps.map(x=>({id:x.id,name:x.nome_completo,login:x.email,role:roleLabel[x.role]||x.role,active:x.ativo?'Ativo':'Inativo',units:[]}));
  const pm=Object.fromEntries(ps.map(x=>[x.id,x]));
- fts=rows.map(x=>({dbid:x.id,id:x.protocolo,year:x.ano,date:x.data_ft,supervisor:pm[x.supervisor_id]?.nome_completo||'—',supervisor_id:x.supervisor_id,unit:unitMap[x.unidade_id]?.nome||'—',unit_id:x.unidade_id,reason:reasonMap[x.motivo_id]?.nome||'—',reason_id:x.motivo_id,absent:x.nome_faltante||'',worker:x.nome_executor,cpf:x.cpf_executor,pixtype:x.tipo_pix,pix:x.chave_pix,value:Number(x.valor),status:statusLabel[x.status]||x.status,rawStatus:x.status,paid:x.pago_em?new Date(x.pago_em).toLocaleDateString('pt-BR'):'',paidAtRaw:x.pago_em||'',paidAt:x.pago_em?new Date(x.pago_em).toLocaleString('pt-BR'):'',financeiro_id:x.financeiro_id||'',financeiro:pm[x.financeiro_id]?.nome_completo||(x.financeiro_id?'Financeiro':'—'),supervisorObs:x.observacao_supervisor||'',dpRhObs:x.dp_rh_obs||'',dpRhAtRaw:x.dp_rh_em||'',createdAtRaw:x.data_lancamento||x.created_at||'',updatedAtRaw:x.updated_at||''}));
+ fts=rows.map(x=>({dbid:x.id,id:x.protocolo,year:x.ano,date:x.data_ft,supervisor:pm[x.supervisor_id]?.nome_completo||'—',supervisor_id:x.supervisor_id,unit:unitMap[x.unidade_id]?.nome||'—',unit_id:x.unidade_id,reason:reasonMap[x.motivo_id]?.nome||'—',reason_id:x.motivo_id,absent:x.nome_faltante||'',worker:x.nome_executor,cpf:x.cpf_executor,pixtype:x.tipo_pix,pix:x.chave_pix,value:Number(x.valor),status:statusLabel[x.status]||x.status,rawStatus:x.status,paid:x.pago_em?new Date(x.pago_em).toLocaleDateString('pt-BR'):'',paidAtRaw:x.pago_em||'',paidAt:x.pago_em?new Date(x.pago_em).toLocaleString('pt-BR'):'',financeiro_id:x.financeiro_id||'',financeiro:pm[x.financeiro_id]?.nome_completo||(x.financeiro_id?'Financeiro':'—'),supervisorObs:x.observacao_supervisor||'',dpRhObs:x.dp_rh_obs||'',financeObs:x.obs_financeiro||'',dpRhAtRaw:x.dp_rh_em||'',createdAtRaw:x.data_lancamento||x.created_at||'',updatedAtRaw:x.updated_at||''}));
  if(currentUser?.dbRole==='supervisor')currentUser.units=unitRecords.filter(x=>currentUser.unitIds?.includes(x.id)).map(x=>x.name);
  refreshSystemLists();renderUsers();renderRegistries();render();
 }
@@ -964,6 +964,7 @@ window.addEventListener('DOMContentLoaded',()=>{setupStaticUI();setTimeout(()=>{
 })();
 </script>
 
+<script src="ft-pix-return.js"></script>
 <script src="ft-document.js"></script>
 <script src="ft-dashboard.js"></script>
 
